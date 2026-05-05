@@ -1,0 +1,90 @@
+\chapter{Introduction}\label{Introduction}
+
+This report documents the technical work undertaken during an industrial internship at \textbf{Juspay Technologies Pvt.\ Ltd.}, Bengaluru, India, as part of the \textbf{Breeze} product team. The internship project, codenamed \textit{Project ION Migration}, focuses on the systematic modernisation of Juspay's merchant-facing checkout frontend --- migrating from a legacy PureScript-based Hyper-widget architecture to a contemporary Svelte-based ION framework.
+
+\par The following chapters detail the organisation's product landscape, the specific problem statement addressed by the migration, the three principal technical contributions made during the internship, and their impact on performance, security, and conversion metrics.
+
+% ---------------------------------------------------------
+\section{About Juspay Technologies}
+
+Juspay Technologies is a global payments infrastructure company headquartered in Bengaluru, India. It operates as an intelligent \textbf{Global Payments Operating System (OS)} --- an orchestration layer that sits between merchants and over 300 global payment processors, acquirers, and banks \cite{juspay_overview}.
+
+\par Juspay's platform is distinguished by three core capabilities:
+
+\begin{itemize}
+  \item \textbf{Modular Integration:} Unified APIs that enable local payment methods across 50+ countries, allowing merchants to activate new payment instruments without custom integrations.
+  \item \textbf{Conversion Uplift:} Intelligent routing and automatic retry mechanisms that are proven to deliver 2--5\% higher transaction success rates compared to direct processor integrations.
+  \item \textbf{Enterprise Reliability:} The backend is implemented in PureScript and Haskell, a deliberate choice for mathematical correctness and fault tolerance, targeting 99.999\% uptime with zero technical declines.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{The Juspay Product Ecosystem}
+
+Juspay offers a comprehensive suite of payment products spanning five verticals, as summarised in Table~\ref{tab:juspay_products}.
+
+\begin{table}[ht]
+\centering
+\caption{Juspay Product Ecosystem}
+\label{tab:juspay_products}
+\begin{tabular}{>{\bfseries}p{3.5cm} p{3.5cm} p{6.5cm}}
+\toprule
+\textbf{Vertical} & \textbf{Product} & \textbf{Description} \\
+\midrule
+Checkout \& Experience
+  & Breeze         & 1-click checkout for D2C brands. \\
+  & HyperCheckout  & Fully managed SDK for all platforms. \\
+  & Express        & Custom-built checkout orchestration. \\
+\midrule
+UPI \& Real-Time
+  & HyperUPI       & In-app, native UPI SDK. \\
+  & UPI 360        & Full-stack acquiring for banks. \\
+  & Autopay        & Recurring mandates infrastructure. \\
+\midrule
+Orchestration \& Scale
+  & Hyperswitch    & Open-source global payment orchestrator. \\
+  & Tokenization   & Card security and vaulting. \\
+  & Juspay Safe    & 2FA automation and security browser. \\
+\midrule
+Affordability \& Credit
+  & HyperCredit    & Instant credit and NBFC orchestration. \\
+  & EMI Suite      & Standard and No-cost EMI management. \\
+  & Offers Engine  & Real-time merchant and bank offers. \\
+\midrule
+Operations \& Backend
+  & Reconciliation & Automated 3-way money tracking. \\
+  & Payouts        & Bulk disbursements and instant refunds. \\
+  & Analytics      & Deep-dive success rate dashboards. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ---------------------------------------------------------
+\section{Breeze: 1-Click Checkout}
+
+\textbf{Breeze} is Juspay's flagship Direct-to-Consumer (D2C) checkout product. Its design philosophy is centred on removing friction from the payment journey through three mechanisms:
+
+\begin{itemize}
+  \item \textbf{Pre-filled Intelligence:} Automated retrieval of a returning customer's shipping addresses and contact details, eliminating repetitive data entry.
+  \item \textbf{Unified Interface:} A consistent, brand-aware checkout overlay that replaces full-page redirects, keeping the user within the merchant's session context.
+  \item \textbf{Conversion Engine:} Architected to eliminate top-of-funnel intent drop-offs, the primary cause of abandoned carts in e-commerce.
+\end{itemize}
+
+\par The internship contributions described in this report are all delivered within the Breeze product's checkout session layer.
+
+% ---------------------------------------------------------
+\section{Project ION Migration: Problem Statement}
+
+The ION migration initiative was launched to address three interconnected problems with the existing Breeze checkout implementation:
+
+\begin{enumerate}
+  \item \textbf{Legacy Architecture (Hyper-widget / PureScript):}\\
+  The existing checkout widget was implemented in PureScript and rendered as a heavy, script-heavy component. This led to high parse times, significant CPU load on resource-constrained devices, and difficulty in iterating on frontend features due to the functional programming barrier for frontend engineers.
+
+  \item \textbf{PCI DSS Compliance Gap:}\\
+  Cardholder data was processed on merchant-hosted domains. Payment Card Industry Data Security Standard (PCI DSS) mandates that sensitive cardholder data be handled only within a certified, isolated environment. Migrating the checkout iframe to Juspay's own native domain was therefore a compliance requirement, not merely an engineering preference.
+
+  \item \textbf{UI and Loading Defects:}\\
+  The legacy implementation exhibited documented issues including iframe loading delays, UI breakage on certain devices and browsers (notably Brave), and mismatches between form-level and cart-level surcharge displays --- all of which degraded the user experience and suppressed conversion rates.
+\end{enumerate}
+
+\par The ION framework, built on Svelte, resolves these issues by introducing a lightweight iframe-first rendering model, a TypeScript-native module architecture, and a first-party Juspay domain for all cardholder data interactions.

@@ -1,0 +1,184 @@
+\chapter{Technical Contributions}\label{TechnicalContributions}
+
+This chapter presents the three principal technical contributions made during the internship, followed by a discussion of the measured performance improvements observed as a result of the ION migration.
+
+% ---------------------------------------------------------
+\section{Contribution 1: PCI-Compliant Automated CI/CD Pipeline}
+
+\subsection{Objective}
+
+The primary objective of this contribution was to replace error-prone, manually-driven deployment workflows with a structured, end-to-end automated pipeline. The system facilitates the secure publishing of TypeScript-based front-end modules to \textbf{AWS S3} while maintaining strict compliance with PCI DSS requirements throughout every stage of the build and release process.
+
+\subsection{Background and Motivation}
+
+Prior to this implementation, the process of releasing updated checkout widget modules to production involved several manual steps: developers were required to perform manual database lookups to resolve configuration mappings, manually trigger publishing scripts, and cross-verify outputs. This introduced human error vectors at multiple points in the release chain --- a critical concern in a payments environment where a mis-deployed asset can directly impact transaction success rates and cardholder data security.
+
+Additionally, the legacy Hyper-widget publishing workflow lacked a systematic mechanism for Cardholder Data (CHD) leak detection. Any inadvertent inclusion of sensitive data in a front-end bundle would not be caught before the asset reached a CDN, constituting a PCI DSS violation.
+
+\subsection{System Design and Workflow}
+
+The pipeline was designed around three core automation concerns:
+
+\begin{enumerate}
+  \item \textbf{Module Orchestration:}\\
+  A TypeScript-native architecture manages the dual-publishing of both NPM packages and compiled Web Components. This ensures that every release is simultaneously available to downstream consumers of the NPM registry (for SDK integrations) and to the CDN (for direct script-tag integrations). The orchestration layer handles versioning, dependency graph resolution, and publishing order automatically.
+
+  \item \textbf{Automated Provisioning via Jenkins:}\\
+  Jenkins pipeline scripts were authored to eliminate manual database lookups entirely. The scripts automatically extract merchant configuration mappings, environment-specific parameters, and deployment targets from the relevant data stores, construct the required deployment artefacts, and publish them to the designated S3 buckets. This removed a significant source of operational toil and reduced the per-release engineering time from hours to minutes.
+
+  \item \textbf{Continuous Integration with CHD Scanning:}\\
+  Every build pass includes three mandatory gates before the publishing phase is entered:
+  \begin{itemize}
+    \item \textit{Transpilation:} TypeScript source is compiled to optimised ES5/ES6 JavaScript targets.
+    \item \textit{Dependency Isolation:} Third-party dependencies are audited and tree-shaken to prevent accidental inclusion of non-compliant packages.
+    \item \textit{CHD Leak Detection:} An automated scanner inspects every build artefact for patterns matching cardholder data --- credit card number formats, CVV patterns, and PAN regex --- generating a CSV-format compliance report for team review before any artefact is eligible for production release.
+  \end{itemize}
+\end{enumerate}
+
+\subsection{Benefits and Impact}
+
+\begin{table}[ht]
+\centering
+\caption{CI/CD Pipeline: Benefits Summary}
+\label{tab:cicd_benefits}
+\begin{tabular}{p{3cm} p{10cm}}
+\toprule
+\textbf{Dimension} & \textbf{Outcome} \\
+\midrule
+Scalability   & Automated module publishing scales horizontally to support the full ION module registry without additional manual effort per module. \\
+\midrule
+Efficiency    & Legacy widget publishing, which required manual cross-referencing of configuration CSV files, was replaced with a fully automated, scannable, and auditable workflow. Release cycle time was reduced significantly. \\
+\midrule
+Security      & Automated CHD scanning during the compliance audit stage ensures that no cardholder data inadvertently enters any public-facing asset, satisfying PCI DSS Requirement 3. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent \textbf{Current Status:} \textit{Complete and deployed to production.}
+
+% ---------------------------------------------------------
+\section{Contribution 2: DOTP (Device OTP) Module}
+
+\subsection{Problem Statement}
+
+\textbf{External Redirects and Transaction Attrition:}\\
+In the traditional card payment authentication flow (3DS 1.0), when a transaction requires additional authentication, the user is redirected from the merchant's checkout page to an external, bank-hosted OTP entry page. This redirect introduces two critical failure points:
+
+\begin{itemize}
+  \item \textbf{Latency:} The round-trip redirect --- from merchant page to bank ACS (Access Control Server) and back --- introduces perceptible loading delays, breaking the flow state of the user.
+  \item \textbf{Drop-off:} A significant proportion of users abandon the transaction during the redirect. This \textit{transaction attrition} directly reduces conversion rates and degrades merchant revenue. Redirects are documented as a primary cause of user drop-offs in e-commerce checkout analytics.
+\end{itemize}
+
+\subsection{Technical Approach}
+
+The DOTP module eliminates the external redirect entirely by implementing an \textbf{on-page, native OTP capture flow} within the ION checkout iframe. The workflow is as follows:
+
+\begin{enumerate}
+  \item \textbf{Frontend Capture:}\\
+  Instead of redirecting the user to a bank-hosted URL, the ION-native DOTP module renders a custom OTP input field directly within the merchant's checkout session. The user enters their OTP without leaving the page, maintaining full context continuity.
+
+  \item \textbf{API Trigger:}\\
+  Upon OTP submission, the frontend initiates a secure \texttt{POST} request to a dedicated backend endpoint hosted on Juspay's PCI-certified domain. The request payload is encrypted in transit.
+
+  \item \textbf{Backend Proxying via 3DS 2.0:}\\
+  The backend API acts as a secure intermediary --- a \textit{proxy} between the merchant session and the card network's authentication infrastructure. Rather than using the legacy 3DS 1.0 redirect model (which transfers the user via a browser redirect to the issuer's ACS), the backend communicates directly with the issuer's ACS using the \textbf{3DS 2.0 protocol}, which is JSON-based and supports decoupled authentication. This eliminates the need for a user-visible redirect entirely.
+\end{enumerate}
+
+\par The architectural comparison between the legacy flow and the new ION-native flow is summarised in Table~\ref{tab:dotp_comparison}.
+
+\begin{table}[ht]
+\centering
+\caption{OTP Authentication Flow: Legacy vs.\ ION DOTP}
+\label{tab:dotp_comparison}
+\begin{tabular}{p{4cm} p{5cm} p{5cm}}
+\toprule
+\textbf{Aspect} & \textbf{Legacy Flow (3DS 1.0)} & \textbf{ION DOTP Flow (3DS 2.0)} \\
+\midrule
+User Experience    & Redirect to bank page; user leaves merchant context. & OTP input rendered natively in checkout iframe. \\
+Latency            & Full page redirect; 1--3 seconds additional latency. & No redirect; sub-100ms input rendering. \\
+Drop-off Risk      & High; context switch causes abandonment. & Minimal; seamless in-page experience. \\
+Security           & Browser-exposed redirect URL; MITM surface. & End-to-end encrypted; unique session tokens; no redirect URL exposure. \\
+Protocol           & 3DS 1.0 (form POST redirect). & 3DS 2.0 (JSON API; decoupled authentication). \\
+PCI Compliance     & Merchant domain handles redirect parameters. & All sensitive data handled within Juspay's PCI-certified domain. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Security Considerations}
+
+The DOTP module was designed with a threat-first security model:
+
+\begin{itemize}
+  \item \textbf{Man-in-the-Middle (MITM) Prevention:} Unique per-session cryptographic tokens are generated for each OTP challenge. The token is bound to the session, device fingerprint, and transaction ID, making it non-replayable.
+  \item \textbf{End-to-End Encryption:} All OTP data is encrypted from the user's device to the backend proxy. No OTP data is stored or logged beyond the authentication handshake.
+  \item \textbf{PCI DSS Scope Containment:} By hosting all authentication interactions within Juspay's certified domain (rather than exposing them to the merchant's DOM), the PCI compliance scope for the merchant is significantly reduced.
+\end{itemize}
+
+\noindent \textbf{Current Status:} \textit{Complete and deployed to production.}
+
+% ---------------------------------------------------------
+\section{Contribution 3: EMI Flow Integration}
+
+\subsection{Objective}
+
+The EMI (Equated Monthly Instalment) flow integration was undertaken to ensure that the post-migration ION card infrastructure is fully compatible with Juspay's existing EMI processing engine. The legacy EMI engine operated against a set of card identifiers and data-store schemas that were specific to the pre-migration Hyper-widget architecture. The migration introduced new card identifiers --- specifically, network tokenisation tokens and card fingerprints --- that the EMI engine was not designed to process.
+
+\par Without this integration, any card processed through the new ION flow would fail EMI eligibility checks, causing a complete loss of EMI payment options for migrated merchants --- a high-impact regression on transaction value and average order value.
+
+\subsection{Workflow}
+
+\begin{enumerate}
+  \item \textbf{API and Schema Integration:}\\
+  The new card identifiers (network tokens and fingerprints) are mapped to the EMI engine's internal data model, replacing all legacy data-store calls with updated flow endpoints. This involved auditing the full call graph of the EMI eligibility service and replacing each legacy card lookup with a token-aware equivalent.
+
+  \item \textbf{Logic Refactoring:}\\
+  The eligibility and subvention modules within the EMI engine were updated to correctly trigger both interest-bearing and no-cost EMI plans for BIN (Bank Identification Number) ranges corresponding to migrated cards. The interest calculation logic was verified against the original formulae to ensure parity.
+
+  \item \textbf{Validation and Canary Deployment:}\\
+  A shadow-run strategy was adopted: the updated EMI engine was run in parallel with the legacy engine on production traffic, with outputs compared automatically. Discrepancies in interest calculation or eligibility determination were flagged for investigation. After achieving zero-discrepancy shadow runs over a defined traffic volume, a canary deployment was initiated to route a small percentage of live EMI transactions through the updated engine, with real-time monitoring of success rates and error rates.
+\end{enumerate}
+
+\subsection{Benefits}
+
+\begin{itemize}
+  \item \textbf{Elimination of Technical Debt:} Decommissioning the legacy card tables removes the operational overhead of maintaining two parallel data stores and eliminates ``stale data'' synchronisation issues that could cause incorrect EMI tenure calculations for long-running loans.
+  \item \textbf{Future-Proofing and Security:} Native integration with the ION flow ensures that the EMI service automatically inherits updated security protocols as they are rolled out --- including enhanced network tokenisation and 3DS 2.0 authentication --- without requiring additional integration work.
+  \item \textbf{Merchant Continuity:} Merchants migrated to the ION flow retain full access to all configured EMI products without any gap in availability or change in user-facing behaviour.
+\end{itemize}
+
+\noindent \textbf{Current Status:} \textit{In progress.}
+
+% ---------------------------------------------------------
+\section{Performance and Load Dynamics}
+
+Beyond the three direct contributions, the ION migration as a whole delivers measurable improvements to the checkout loading experience. The key performance gains are:
+
+\begin{itemize}
+  \item \textbf{Reduced I/O:} ION uses a lightweight iframe approach for checkout rendering. Compared to the heavy inline script execution model of the legacy Hyper-widget, the iframe model moves rendering work off the merchant's main thread, reducing Time-to-Interactive (TTI) and Cumulative Layout Shift (CLS) scores for the merchant's page.
+
+  \item \textbf{Smaller Bundles:} The removal of redundant Hyper files from the critical checkout path significantly reduces the total JavaScript asset weight delivered to the user. Reduced parse and evaluation time directly translates to faster checkout appearance, particularly on mid-range and entry-level mobile devices.
+
+  \item \textbf{Brave Browser Compatibility:} Specific compatibility issues were resolved that had prevented Juspay's core checkout scripts from executing correctly on the Brave browser. Brave's aggressive script blocking and fingerprinting protections had been silently breaking the checkout flow for a segment of users; the ION-based implementation addresses these blockers explicitly.
+\end{itemize}
+
+% ---------------------------------------------------------
+\section{Upcoming Work}
+
+Three further enhancements are planned for the next sprint cycle, as outlined in Table~\ref{tab:upcoming_tasks}.
+
+\begin{table}[ht]
+\centering
+\caption{Upcoming Task Pipeline}
+\label{tab:upcoming_tasks}
+\begin{tabular}{p{3cm} p{4cm} p{6cm} p{1.5cm}}
+\toprule
+\textbf{Area} & \textbf{Feature} & \textbf{Description} & \textbf{Impact} \\
+\midrule
+SKU Offers   & Offer Logic         & Enable product SKU-based offer logic to empower merchant marketing campaigns. & High \\
+\midrule
+EMI Flow     & Juspay Optimisation & Fix Juspay decline alerts via transaction eligibility checks to increase transaction success rates. & Medium \\
+\midrule
+Surcharge UI & Form \& Cart Sync   & Synchronise surcharge values between the checkout form and the mini-cart to ensure absolute pricing transparency for the end user. & Low \\
+\bottomrule
+\end{tabular}
+\end{table}

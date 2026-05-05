@@ -1,0 +1,32 @@
+\chapter{Conclusion}\label{Conclusion}
+
+This report has documented the design, implementation, and outcomes of \textit{Project ION Migration} --- a strategic initiative undertaken at Juspay Technologies Pvt.\ Ltd.\ to modernise the Breeze checkout frontend from a legacy PureScript-based Hyper-widget to a contemporary Svelte-based ION architecture.
+
+\par The internship produced three concrete, production-deployed or in-progress technical contributions:
+
+\begin{enumerate}
+  \item A \textbf{PCI-Compliant Automated CI/CD Pipeline} that replaced manual deployment procedures with a Jenkins-orchestrated, CHD-scanning, TypeScript-native publishing system. The pipeline enforces security compliance at every build stage and significantly reduced release cycle time and operational risk.
+
+  \item A \textbf{DOTP (Device OTP) Module} that eliminated high-latency external bank redirects during card authentication by implementing a native, on-page OTP capture flow backed by a 3DS 2.0 compliant backend proxy. This contribution directly improves transaction conversion rates, reduces user drop-off, and strengthens the security posture through MITM-resistant session token architecture.
+
+  \item An \textbf{EMI Flow Integration} (ongoing) that remaps Juspay's EMI processing engine to post-migration card identifiers. By replacing legacy data-store calls with token-aware endpoints and validating parity through shadow runs and canary deployments, this contribution ensures merchants migrated to the ION flow retain full EMI product availability without regression.
+\end{enumerate}
+
+\par Collectively, these contributions advance the three stated objectives of the ION migration: performance improvement (reduced I/O, smaller bundles, improved browser compatibility), PCI DSS compliance (first-party domain, CHD scanning, 3DS 2.0 adoption), and user experience modernisation (native OTP, seamless EMI continuity, surcharge UI consistency).
+
+% ---------------------------------------------------------
+\section*{Scope for Further Work}
+
+The ION migration is an ongoing programme. The following directions are identified for future work beyond the scope of this internship:
+
+\begin{itemize}
+  \item \textbf{SKU-Based Offer Logic:} Implementing product SKU-level offer targeting within the checkout session to enable personalised, campaign-driven discount application --- a high-impact feature for merchant marketing teams.
+
+  \item \textbf{Juspay EMI Decline Optimisation:} Resolving transaction eligibility logic gaps that currently generate false-positive Juspay decline alerts, thereby recovering a segment of valid transactions that are incorrectly suppressed.
+
+  \item \textbf{Surcharge Synchronisation:} Achieving real-time synchronisation of surcharge values between the checkout form and the merchant's mini-cart widget, eliminating pricing discrepancies visible to end users.
+
+  \item \textbf{Full Legacy Decommissioning:} Upon completion of merchant migration, the Hyper-widget codebase and its associated data stores can be fully decommissioned, eliminating ongoing maintenance overhead and simplifying the system's operational surface.
+
+  \item \textbf{A/B Testing Framework Integration:} Building an experimentation layer on top of the ION architecture to enable controlled A/B tests for checkout UI/UX improvements, supporting data-driven conversion optimisation at scale.
+\end{itemize}

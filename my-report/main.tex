@@ -1,0 +1,84 @@
+\documentclass[12pt,a4paper,oneside]{NITR}
+
+\usepackage[hyphens]{url}
+\usepackage[none]{hyphenat}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{gray}\itshape,
+  stringstyle=\color{orange},
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray}
+}
+
+\onehalfspacing
+\begin{document}
+\sloppy
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % %
+\include{FrontPages}
+% % % % % % % % % % % % % % % % % % % % % % % % % % %
+
+\coverPage
+
+\pagenumbering{roman}
+\certificateOneSupervisor
+\input{Chap00/JuspayCertificate}
+
+\dedication
+\declaration
+\acknowledgment
+\abstract
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % %
+\tableofcontents
+\cleardoublepage
+% % % % % % % % % % % % % % % % % % % % % % % % % % %
+
+\addcontentsline{toc}{chapter}{List of Tables}
+\listoftables
+\cleardoublepage
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % %
+\pagenumbering{arabic}
+\pagestyle{fancy}
+\renewcommand{\chaptermark}[1]{\markboth{#1}{}}
+\renewcommand{\sectionmark}[1]{\markright{\textbf{Chapter \thechapter}}}
+% % % % % % % % % % % % % % % % % % % % % % % % % % %
+
+\input{Chap01/Introduction}
+\thispagestyle{empty}
+\cleardoublepage
+
+\input{Chap02/TechnicalContributions}
+\thispagestyle{empty}
+\cleardoublepage
+
+\input{Chap03/Conclusion}
+\thispagestyle{empty}
+\cleardoublepage
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % %
+\rhead{\textit{References}}
+\lhead{}
+\renewcommand\bibname{References}
+
+\bibliographystyle{Ref/IEEEtran}
+{
+  \fontsize{10}{12}
+  \selectfont
+  \addcontentsline{toc}{chapter}{References}
+  \bibliography{Ref/References}
+}
+
+\end{document}
